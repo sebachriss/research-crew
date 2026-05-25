@@ -24,33 +24,45 @@ if "report" not in st.session_state:
     st.session_state.report = ""
 
 
-# Sidebar
+# Sidebar: usamos placeholders que se refrescan dentro del loop, así la traza
+# aparece incrementalmente y no toda de golpe al final.
 with st.sidebar:
     st.title("Research Crew")
     st.caption("Sistema multi-agente con LangGraph")
-
     st.divider()
     st.subheader("Traza")
-    trace_container = st.container(height=400)
-    with trace_container:
+    trace_placeholder = st.empty()
+    st.divider()
+    metrics_placeholder = st.empty()
+    errors_placeholder = st.empty()
+
+
+def render_sidebar() -> None:
+    """Repinta los placeholders de la sidebar desde st.session_state."""
+    with trace_placeholder.container(height=400):
         if not st.session_state.trace_events:
             st.caption("_Esperando consulta…_")
         else:
             for ev in st.session_state.trace_events:
                 st.markdown(render_trace_event(ev))
 
-    st.divider()
-    col1, col2 = st.columns(2)
-    col1.metric("Iteración", f"{st.session_state.iteration_count}/{MAX_ITERATIONS}")
-    col2.metric("Rondas", st.session_state.research_rounds)
+    with metrics_placeholder.container():
+        col1, col2 = st.columns(2)
+        col1.metric("Iteración", f"{st.session_state.iteration_count}/{MAX_ITERATIONS}")
+        col2.metric("Rondas", st.session_state.research_rounds)
 
     if st.session_state.errors:
-        with st.expander(f"Errores ({len(st.session_state.errors)})"):
+        with errors_placeholder.expander(f"Errores ({len(st.session_state.errors)})"):
             for e in st.session_state.errors:
                 st.code(
                     f"{e['node']} [iter {e['iteration']}]: "
                     f"{e['exception_type']}: {e['message']}"
                 )
+    else:
+        errors_placeholder.empty()
+
+
+render_sidebar()
 
 
 # Main
@@ -71,6 +83,8 @@ question = st.text_input(
     label_visibility="collapsed",
 )
 
+report_placeholder = st.empty()
+
 if st.button("Investigar", disabled=st.session_state.is_running or not question):
     # Reset estado de sesión para la nueva consulta
     st.session_state.is_running = True
@@ -80,14 +94,13 @@ if st.button("Investigar", disabled=st.session_state.is_running or not question)
     st.session_state.errors = []
     st.session_state.report = ""
 
-    main_container = st.container()
-    report_placeholder = main_container.empty()
+    render_sidebar()  # limpia la traza visible
+    report_placeholder.empty()
+
     streaming_text = ""
 
-    # Consume el generador del bridge
     for event_type, payload in run_graph_streaming(question):
         if event_type == "state":
-            # payload = {"node_name": diff_dict}
             for _node_name, diff in payload.items():
                 if "trace" in diff:
                     st.session_state.trace_events.extend(diff["trace"])
@@ -99,23 +112,22 @@ if st.button("Investigar", disabled=st.session_state.is_running or not question)
                     st.session_state.errors.extend(diff["errors"])
                 if "report" in diff:
                     st.session_state.report = diff["report"]
+            render_sidebar()
         elif event_type == "token":
             streaming_text += payload
             report_placeholder.markdown(streaming_text + "▌")
 
-    # Render final del reporte completo (con sección Fuentes)
-    if st.session_state.report:
-        report_placeholder.markdown(st.session_state.report)
-        st.download_button(
-            "Descargar informe (.md)",
-            data=st.session_state.report,
-            file_name="research-crew-report.md",
-            mime="text/markdown",
-        )
-
     st.session_state.is_running = False
-    st.rerun()
+    # No llamamos st.rerun(): el bloque final renderiza el report y el download
+    # button desde session_state, manteniendo el botón persistente entre runs.
 
-elif st.session_state.report and not st.session_state.is_running:
-    # Mostrar último report al recargar la página
-    st.markdown(st.session_state.report)
+# Render persistente del informe + download button. Funciona tanto justo
+# después de una corrida como al recargar la página con un report ya cacheado.
+if st.session_state.report and not st.session_state.is_running:
+    report_placeholder.markdown(st.session_state.report)
+    st.download_button(
+        "Descargar informe (.md)",
+        data=st.session_state.report,
+        file_name="research-crew-report.md",
+        mime="text/markdown",
+    )
