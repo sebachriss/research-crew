@@ -25,7 +25,11 @@ def _load_sections() -> tuple[str, str]:
     sections = {}
     for part in parts[1:]:
         name, body = part.split("\n", 1)
-        sections[name.strip()] = body.strip()
+        body = body.strip()
+        # Remove trailing separator (---) if present (used as a visual break in the .txt file)
+        if body.endswith("---"):
+            body = body[: -len("---")].rstrip()
+        sections[name.strip()] = body
     return sections["PLAN"], sections["EVAL"]
 
 
