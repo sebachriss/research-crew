@@ -189,38 +189,45 @@ pytest tests/ -v
 
 > Esta sección la mantenemos actualizada manualmente conforme avanza el proyecto.
 
-**Fase actual:** 🟡 Setup inicial
+**Fase actual:** 🟢 Implementación completa (41/41 tests pasando, ruff clean)
 
 ### Hecho
-- [ ] Aún nada — partiendo desde cero.
 
-### Por hacer (orden sugerido)
+**Día 1 — Sábado AM**
+- [x] Estructura de carpetas (`src/`, `src/agents/`, `src/ui/`, `src/prompts/`, `tests/`).
+- [x] Setup de `pyproject.toml`, `requirements.txt`, `.env.example`, `.gitignore`.
+- [x] `src/config.py` con env vars + `check_api_keys`.
+- [x] `src/state.py` con `AgentState`, `ResearchResult`, `TraceEvent`, `NodeError` y `make_initial_state`.
+- [x] `src/schemas.py` con `PlanOutput`, `EvalOutput`, `AnalystOutput`.
+- [x] `src/llm.py` con factory de Gemini.
+- [x] `src/agents/supervisor.py` con modos PLAN y EVAL + caps bypass.
 
-**Día 1 — Sábado AM (3-4 hrs)**
-- [ ] Crear estructura de carpetas y archivos vacíos.
-- [ ] Setup de `requirements.txt`, `.env.example`, `.gitignore`, `pyproject.toml`.
-- [ ] Implementar `src/state.py` con `AgentState`.
-- [ ] Implementar `src/llm.py` con factory de Gemini.
-- [ ] Implementar `src/agents/supervisor.py` (routing básico, sin LLM aún).
-- [ ] Test mínimo: el grafo arranca y termina sin errores con nodos dummy.
+**Día 1 — Sábado PM**
+- [x] `src/agents/researcher.py` con Tavily async parallel (`asyncio.gather`).
+- [x] `src/agents/analyst.py` con síntesis estructurada.
+- [x] `src/agents/writer.py` con post-proceso de citas (sección Fuentes construida por código).
+- [x] Prompts en `src/prompts/supervisor.txt`, `analyst.txt`, `writer.txt`.
+- [x] `src/graph.py` con `build_graph` + CLI entry.
+- [x] Tests e2e end-to-end con LLM y Tavily mockeados (ronda única + re-research).
 
-**Día 1 — Sábado PM (3-4 hrs)**
-- [ ] Implementar `researcher.py` con Tavily.
-- [ ] Implementar `analyst.py`.
-- [ ] Implementar `writer.py`.
-- [ ] Refinar prompts en `src/prompts/`.
-- [ ] Test end-to-end por CLI con una pregunta real.
+**Día 2 — Domingo AM**
+- [x] `app.py` con Streamlit, sidebar de traza, streaming token-por-token del informe.
+- [x] `src/ui/async_bridge.py` (wrapper async→sync).
+- [x] `src/ui/trace.py` (render de `TraceEvent` coloreado por nivel).
 
-**Día 2 — Domingo AM (3-4 hrs)**
-- [ ] Construir `app.py` con Streamlit.
-- [ ] Streaming de progreso (eventos del grafo en tiempo real).
-- [ ] Render del informe final con citas clickeables.
-- [ ] Sidebar con traza visible de cada agente.
-
-**Día 2 — Domingo PM (2-3 hrs)**
-- [ ] README con diagrama, ejemplo de uso, screenshots/GIF.
-- [ ] Pulido visual de la UI.
+**Día 2 — Domingo PM**
+- [x] README con diagrama, quickstart, decisiones de diseño, estructura.
+- [x] Manejo de errores robusto (try/except genérico en supervisor/analyst/writer).
+- [ ] Pulido visual de la UI (validación manual pendiente con `.env` configurado).
 - [ ] Push final a GitHub público.
+
+### Cobertura
+
+- 41 tests automatizados, todos con mocks (no consumen API). Tiempo: <3s.
+- Ruff clean en todo `src/` y `tests/`.
+- 24 commits frecuentes (uno por task del plan + fixes intermedios).
+- Spec: `docs/superpowers/specs/2026-05-24-research-crew-design.md`.
+- Plan: `docs/superpowers/plans/2026-05-24-research-crew.md`.
 
 ---
 
