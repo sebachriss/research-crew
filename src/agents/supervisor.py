@@ -50,8 +50,8 @@ def supervisor_node(state: AgentState) -> dict:
     if not state["queries"] and not state["research_results"]:
         return _run_plan(state)
 
-    # MODO EVAL: después del analyst
-    if state["analysis"] and state["enough_info"] is None:
+    # MODO EVAL: después del analyst. Cada vez que hay un análisis fresco a evaluar.
+    if state["analysis"]:
         return _run_eval(state)
 
     # No debería llegar aquí; safety fallback
