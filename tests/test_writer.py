@@ -14,6 +14,19 @@ def test_extract_cited_indices_empty_when_no_citations():
     assert extract_cited_indices("texto sin citas") == []
 
 
+def test_extract_cited_indices_expands_grouped_citations():
+    """Gemini suele consolidar múltiples citas en un solo bracket:
+    [9, 21, 26, 32]. Cada índice debe aparecer en el resultado."""
+    text = "primero [1, 2, 3] luego [4,5] y solo [6]"
+    assert extract_cited_indices(text) == [1, 2, 3, 4, 5, 6]
+
+
+def test_extract_cited_indices_dedupes_across_groups():
+    """Índices repetidos entre grupos y citas sueltas se cuentan una vez."""
+    text = "blah [1, 2] y [2, 3] y luego [1]"
+    assert extract_cited_indices(text) == [1, 2, 3]
+
+
 def test_build_sources_section_uses_only_cited():
     results = [
         {"url": "uA", "title": "tA", "content": "", "snippet": "", "query": "qA"},

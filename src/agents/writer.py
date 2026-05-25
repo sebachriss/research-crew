@@ -14,7 +14,7 @@ from src.state import AgentState, NodeError
 _PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "writer.txt"
 _PROMPT = _PROMPT_PATH.read_text(encoding="utf-8")
 
-_CITATION_RE = re.compile(r"\[(\d+)\]")
+_CITATION_RE = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
 
 
 def _format_sources_for_prompt(results: list[dict]) -> str:
@@ -26,12 +26,18 @@ def _format_sources_for_prompt(results: list[dict]) -> str:
 
 
 def extract_cited_indices(text: str) -> list[int]:
-    """Devuelve los índices únicos de citas [n] en el orden en que aparecen."""
+    """Devuelve los índices únicos de citas en el orden en que aparecen.
+
+    Acepta tanto `[N]` como agrupadas `[a, b, c]` — Gemini suele consolidar
+    múltiples citas en un solo bracket, y queremos que todas terminen en la
+    sección Fuentes.
+    """
     seen: list[int] = []
     for match in _CITATION_RE.finditer(text):
-        n = int(match.group(1))
-        if n not in seen:
-            seen.append(n)
+        for part in match.group(1).split(","):
+            n = int(part.strip())
+            if n not in seen:
+                seen.append(n)
     return seen
 
 
