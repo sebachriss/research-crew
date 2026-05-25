@@ -6,8 +6,6 @@ Cada agente devuelve solo el diff; el reducer se encarga de fusionar.
 from operator import add
 from typing import Annotated, Literal, TypedDict
 
-from langchain_core.messages import BaseMessage  # noqa: F401 (reservado por compat)
-
 
 class ResearchResult(TypedDict):
     url: str
