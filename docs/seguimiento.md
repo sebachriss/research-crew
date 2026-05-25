@@ -1,18 +1,20 @@
 # Seguimiento — Research Crew
 
-**Última sesión:** 2026-05-24
-**Próxima sesión:** 2026-05-25 (o cuando retomes)
+**Última sesión:** 2026-05-25
+**Próxima sesión:** smoke tests con `.env` + push a GitHub
 
 ---
 
 ## ✅ Estado actual
 
-Implementación **completa**: 26 commits desde `71ac012` (initial) hasta `4e6e5bf` (fix streaming).
+Implementación **completa + minor issues cerrados** en sesión 2026-05-25.
 
-- 41 tests automatizados pasando, todos con mocks (corren en <2s)
+- 42 tests automatizados pasando, todos con mocks (corren en <2s) — se agregó el e2e degradado
 - Ruff clean en todo `src/` y `tests/`
 - Arquitectura fiel al spec: supervisor + 3 workers vía LangGraph, prompts en `.txt`, error handling graceful
 - Streaming real funcionando: bridge async→sync incremental + writer con `astream`
+- `_now/_trace` centralizados en `src/agents/_trace_util.py` (Literal tipado, sin `type: ignore`)
+- `LICENSE` MIT presente; `.env.example` completo; `app.py` usa `MAX_ITERATIONS` del config
 
 Para verificar que todo sigue OK al retomar:
 
@@ -79,19 +81,14 @@ git push -u origin main
 
 ## ⚠ Issues conocidos no resueltos (Minor)
 
-Del final code review (no son bloqueantes para portfolio):
+Los 6 issues del code review final están **resueltos** (commits `86c57a3`, `ae6a7aa`, `a06c659` del 2026-05-25):
 
-1. **`_now()` y `_trace()` duplicados** en `supervisor.py`, `researcher.py`, `analyst.py`, `writer.py` — ~15 LOC repetidos. Refactor a `src/agents/_trace_util.py` cuando se quiera.
-
-2. **`.env.example` incompleto** — solo lista `MAX_ITERATIONS`. Faltan opcionales: `MAX_RESEARCH_ROUNDS`, `QUERIES_PER_ROUND`, `TAVILY_MAX_RESULTS`.
-
-3. **`app.py:44` hardcodea `/8`** en la métrica de iteración. Si se cambia `MAX_ITERATIONS` vía env, el display queda inconsistente. Trivial fix: importar `MAX_ITERATIONS` y usar f-string.
-
-4. **No hay `LICENSE` file** pese a que README dice MIT. Agregar `LICENSE` con texto MIT estándar antes del push.
-
-5. **`type: ignore[arg-type]`** en cada construcción de `TraceEvent` por el Literal de `level`. Tightening `_trace(level: Literal["info","warn","error"])` lo elimina.
-
-6. **No hay test e2e** del flujo "las 3 queries de Tavily fallan → grafo aun termina con report degradado". El analyst sí lo tiene unit, pero no la cadena completa.
+1. ~~`_now()` / `_trace()` duplicados~~ → centralizados en `src/agents/_trace_util.py`.
+2. ~~`.env.example` incompleto~~ → agregados `MAX_RESEARCH_ROUNDS`, `QUERIES_PER_ROUND`, `TAVILY_MAX_RESULTS`.
+3. ~~`app.py:44` hardcodea `/8`~~ → ahora usa `MAX_ITERATIONS` del config.
+4. ~~No hay `LICENSE`~~ → `LICENSE` MIT presente en raíz.
+5. ~~`type: ignore[arg-type]` en `TraceEvent`~~ → `trace(level: TraceLevel)` con `Literal` tipado.
+6. ~~Falta test e2e degradado~~ → `test_graph_completes_when_all_tavily_queries_fail` en `tests/test_graph.py`.
 
 ---
 
