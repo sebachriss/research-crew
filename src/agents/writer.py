@@ -5,24 +5,16 @@ a partir de las citas `[n]` que efectivamente aparecen en el texto generado.
 Esto evita alucinación de URLs.
 """
 import re
-from datetime import UTC, datetime
 from pathlib import Path
 
+from src.agents._trace_util import trace
 from src.llm import get_llm
-from src.state import AgentState, NodeError, TraceEvent
+from src.state import AgentState, NodeError
 
 _PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "writer.txt"
 _PROMPT = _PROMPT_PATH.read_text(encoding="utf-8")
 
 _CITATION_RE = re.compile(r"\[(\d+)\]")
-
-
-def _now() -> str:
-    return datetime.now(UTC).isoformat(timespec="seconds")
-
-
-def _trace(level: str, text: str) -> TraceEvent:
-    return TraceEvent(timestamp=_now(), node="writer", level=level, text=text)  # type: ignore[arg-type]
 
 
 def _format_sources_for_prompt(results: list[dict]) -> str:
@@ -91,7 +83,7 @@ async def writer_node(state: AgentState) -> dict:
             "report": full_report,
             "iteration_count": state["iteration_count"] + 1,
             "trace": [
-                _trace("info", f"informe generado ({len(cited)} fuentes citadas)"),
+                trace("writer", "info", f"informe generado ({len(cited)} fuentes citadas)"),
             ],
         }
     except Exception as exc:  # noqa: BLE001
@@ -106,5 +98,5 @@ async def writer_node(state: AgentState) -> dict:
                     message=str(exc),
                 )
             ],
-            "trace": [_trace("error", f"falló: {type(exc).__name__}: {exc}")],
+            "trace": [trace("writer", "error", f"falló: {type(exc).__name__}: {exc}")],
         }

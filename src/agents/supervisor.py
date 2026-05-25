@@ -6,13 +6,13 @@ Se invoca en dos momentos:
 
 El código elige el modo según el estado; ambos prompts viven en `prompts/supervisor.txt`.
 """
-from datetime import UTC, datetime
 from pathlib import Path
 
+from src.agents._trace_util import trace
 from src.config import MAX_ITERATIONS, MAX_RESEARCH_ROUNDS
 from src.llm import get_llm
 from src.schemas import EvalOutput, PlanOutput
-from src.state import AgentState, NodeError, TraceEvent
+from src.state import AgentState, NodeError
 
 _PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "supervisor.txt"
 
@@ -36,14 +36,6 @@ def _load_sections() -> tuple[str, str]:
 _PLAN_TEMPLATE, _EVAL_TEMPLATE = _load_sections()
 
 
-def _now() -> str:
-    return datetime.now(UTC).isoformat(timespec="seconds")
-
-
-def _trace(node: str, level: str, text: str) -> TraceEvent:
-    return TraceEvent(timestamp=_now(), node=node, level=level, text=text)  # type: ignore[arg-type]
-
-
 def supervisor_node(state: AgentState) -> dict:
     """Nodo supervisor. Captura excepciones para no crashear el grafo."""
     try:
@@ -59,7 +51,7 @@ def supervisor_node(state: AgentState) -> dict:
         return {
             "next_agent": "writer",
             "iteration_count": state["iteration_count"] + 1,
-            "trace": [_trace("supervisor", "warn", "estado inesperado, forzando writer")],
+            "trace": [trace("supervisor", "warn", "estado inesperado, forzando writer")],
         }
     except Exception as exc:  # noqa: BLE001
         return {
@@ -74,7 +66,7 @@ def supervisor_node(state: AgentState) -> dict:
                     message=str(exc),
                 )
             ],
-            "trace": [_trace("supervisor", "error", f"falló: {type(exc).__name__}: {exc}")],
+            "trace": [trace("supervisor", "error", f"falló: {type(exc).__name__}: {exc}")],
         }
 
 
@@ -89,7 +81,7 @@ def _run_plan(state: AgentState) -> dict:
         "next_agent": "researcher",
         "iteration_count": state["iteration_count"] + 1,
         "trace": [
-            _trace("supervisor", "info", f"PLAN: {len(result.queries)} sub-queries generadas")
+            trace("supervisor", "info", f"PLAN: {len(result.queries)} sub-queries generadas")
         ],
     }
 
@@ -105,7 +97,7 @@ def _run_eval(state: AgentState) -> dict:
             "enough_info": True,
             "next_agent": "writer",
             "iteration_count": state["iteration_count"] + 1,
-            "trace": [_trace("supervisor", "warn", "cap alcanzado, forzando cierre")],
+            "trace": [trace("supervisor", "warn", "cap alcanzado, forzando cierre")],
         }
 
     llm = get_llm()
@@ -123,7 +115,7 @@ def _run_eval(state: AgentState) -> dict:
         "enough_info": result.enough_info,
         "iteration_count": state["iteration_count"] + 1,
         "trace": [
-            _trace(
+            trace(
                 "supervisor",
                 "info",
                 f"EVAL: enough_info={result.enough_info} — {result.reasoning}",
