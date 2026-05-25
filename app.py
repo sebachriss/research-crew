@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from src.config import ConfigError, check_api_keys
+from src.config import MAX_ITERATIONS, ConfigError, check_api_keys
 from src.ui.async_bridge import run_graph_streaming
 from src.ui.trace import render_trace_event
 
@@ -41,7 +41,7 @@ with st.sidebar:
 
     st.divider()
     col1, col2 = st.columns(2)
-    col1.metric("Iteración", f"{st.session_state.iteration_count}/8")
+    col1.metric("Iteración", f"{st.session_state.iteration_count}/{MAX_ITERATIONS}")
     col2.metric("Rondas", st.session_state.research_rounds)
 
     if st.session_state.errors:
