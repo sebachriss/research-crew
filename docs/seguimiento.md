@@ -30,9 +30,9 @@ git log --oneline | head -10
 
 ---
 
-## 🔧 Pendiente para mañana
+## ✅ Pendientes cerrados (2026-05-25)
 
-### 1-3. ~~Configurar .env + smoke tests CLI/UI~~ ✅ hechos 2026-05-25
+### 1-3. Configurar .env + smoke tests CLI/UI
 
 CLI: validado con "¿Cuál es el estado actual de la regulación de IA en Chile?" — produjo informe completo con TL;DR, Hallazgos, Fuentes reales (uhc.cl, iapp.org). Bug detectado y fixeado: citas agrupadas (commit `a314388`).
 
@@ -40,12 +40,9 @@ UI: validada en navegador con la misma pregunta — sidebar streamea evento por 
 
 ### 4. Push a GitHub público
 
-```powershell
-gh repo create research-crew --public --source=. --remote=origin --description "Sistema multi-agente con LangGraph"
-git push -u origin main
-```
+Repo público: **https://github.com/sebalda/research-crew** (branch `main`, 32 commits).
 
-(`gh` está configurado con la cuenta personal `sebaceronu@gmail.com`.)
+Nota: `gh` requirió `auth login` para agregar la cuenta `sebalda` (la activa antes era `sebakobai1` de trabajo) y `gh auth setup-git` para que git resolviera el credential helper correcto en HTTPS — el primer push devolvió 403 porque Git Credential Manager tenía cacheada la otra cuenta.
 
 ---
 
