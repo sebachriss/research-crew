@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from src.llm import get_llm
-from src.state import AgentState, TraceEvent
+from src.state import AgentState, NodeError, TraceEvent
 
 _PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "writer.txt"
 _PROMPT = _PROMPT_PATH.read_text(encoding="utf-8")
@@ -56,26 +56,48 @@ def build_sources_section(cited_indices: list[int], results: list[dict]) -> str:
     return "\n".join(lines)
 
 
+_FALLBACK_REPORT = (
+    "## Error\n\n"
+    "No fue posible generar el informe completo por un error interno en el writer. "
+    "Revisa la sección de errores para más detalles.\n"
+)
+
+
 def writer_node(state: AgentState) -> dict:
     """Genera el informe y le concatena la sección Fuentes."""
-    llm = get_llm()
-    prompt = _PROMPT.format(
-        question=state["question"],
-        analysis=state["analysis"],
-        sources=_format_sources_for_prompt(state["research_results"]),
-    )
-    response = llm.invoke(prompt)
-    body = response.content if hasattr(response, "content") else str(response)
+    try:
+        llm = get_llm()
+        prompt = _PROMPT.format(
+            question=state["question"],
+            analysis=state["analysis"],
+            sources=_format_sources_for_prompt(state["research_results"]),
+        )
+        response = llm.invoke(prompt)
+        body = response.content if hasattr(response, "content") else str(response)
 
-    cited = extract_cited_indices(body)
-    sources_section = build_sources_section(cited, state["research_results"])
+        cited = extract_cited_indices(body)
+        sources_section = build_sources_section(cited, state["research_results"])
 
-    full_report = f"{body.strip()}\n\n{sources_section}\n"
+        full_report = f"{body.strip()}\n\n{sources_section}\n"
 
-    return {
-        "report": full_report,
-        "iteration_count": state["iteration_count"] + 1,
-        "trace": [
-            _trace("info", f"informe generado ({len(cited)} fuentes citadas)"),
-        ],
-    }
+        return {
+            "report": full_report,
+            "iteration_count": state["iteration_count"] + 1,
+            "trace": [
+                _trace("info", f"informe generado ({len(cited)} fuentes citadas)"),
+            ],
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "report": _FALLBACK_REPORT,
+            "iteration_count": state["iteration_count"] + 1,
+            "errors": [
+                NodeError(
+                    node="writer",
+                    iteration=state["iteration_count"] + 1,
+                    exception_type=type(exc).__name__,
+                    message=str(exc),
+                )
+            ],
+            "trace": [_trace("error", f"falló: {type(exc).__name__}: {exc}")],
+        }

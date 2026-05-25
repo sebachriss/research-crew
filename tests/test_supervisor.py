@@ -102,3 +102,25 @@ def test_supervisor_eval_bypass_when_research_rounds_cap_reached():
     assert diff["enough_info"] is True
     assert diff["next_agent"] == "writer"
     assert mock_get_llm.called is False
+
+
+def test_supervisor_catches_llm_exception_and_returns_safe_diff():
+    state = make_initial_state("¿Q?")
+
+    def raise_boom(*args, **kwargs):
+        raise RuntimeError("LLM boom")
+
+    llm = MagicMock()
+    structured = MagicMock()
+    structured.invoke = MagicMock(side_effect=raise_boom)
+    llm.with_structured_output = MagicMock(return_value=structured)
+
+    with patch("src.agents.supervisor.get_llm", return_value=llm):
+        diff = supervisor_node(state)
+
+    assert len(diff["errors"]) == 1
+    assert diff["errors"][0]["node"] == "supervisor"
+    assert diff["errors"][0]["exception_type"] == "RuntimeError"
+    assert diff["next_agent"] == "writer"
+    assert diff["enough_info"] is True
+    assert any(e["level"] == "error" for e in diff["trace"])

@@ -12,7 +12,7 @@ from pathlib import Path
 from src.config import MAX_ITERATIONS, MAX_RESEARCH_ROUNDS
 from src.llm import get_llm
 from src.schemas import EvalOutput, PlanOutput
-from src.state import AgentState, TraceEvent
+from src.state import AgentState, NodeError, TraceEvent
 
 _PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "supervisor.txt"
 
@@ -45,21 +45,37 @@ def _trace(node: str, level: str, text: str) -> TraceEvent:
 
 
 def supervisor_node(state: AgentState) -> dict:
-    """Nodo supervisor. Detecta el modo y ejecuta."""
-    # MODO PLAN: arranque (sin queries ni resultados)
-    if not state["queries"] and not state["research_results"]:
-        return _run_plan(state)
+    """Nodo supervisor. Captura excepciones para no crashear el grafo."""
+    try:
+        # MODO PLAN: arranque (sin queries ni resultados)
+        if not state["queries"] and not state["research_results"]:
+            return _run_plan(state)
 
-    # MODO EVAL: después del analyst. Cada vez que hay un análisis fresco a evaluar.
-    if state["analysis"]:
-        return _run_eval(state)
+        # MODO EVAL: después del analyst. Cada vez que hay un análisis fresco a evaluar.
+        if state["analysis"]:
+            return _run_eval(state)
 
-    # No debería llegar aquí; safety fallback
-    return {
-        "next_agent": "writer",
-        "iteration_count": state["iteration_count"] + 1,
-        "trace": [_trace("supervisor", "warn", "estado inesperado, forzando writer")],
-    }
+        # No debería llegar aquí; safety fallback
+        return {
+            "next_agent": "writer",
+            "iteration_count": state["iteration_count"] + 1,
+            "trace": [_trace("supervisor", "warn", "estado inesperado, forzando writer")],
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "next_agent": "writer",
+            "enough_info": True,
+            "iteration_count": state["iteration_count"] + 1,
+            "errors": [
+                NodeError(
+                    node="supervisor",
+                    iteration=state["iteration_count"] + 1,
+                    exception_type=type(exc).__name__,
+                    message=str(exc),
+                )
+            ],
+            "trace": [_trace("supervisor", "error", f"falló: {type(exc).__name__}: {exc}")],
+        }
 
 
 def _run_plan(state: AgentState) -> dict:

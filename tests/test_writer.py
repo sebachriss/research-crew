@@ -59,3 +59,20 @@ def test_writer_node_produces_report_with_sources_appended():
     assert "[2] tB" in diff["report"]
     assert "next_agent" not in diff
     assert diff["iteration_count"] == 1
+
+
+def test_writer_catches_llm_exception_and_returns_fallback_report():
+    state = make_initial_state("¿Q?")
+    state["analysis"] = "síntesis"
+    state["research_results"] = []
+
+    fake_llm = MagicMock()
+    fake_llm.invoke = MagicMock(side_effect=RuntimeError("writer boom"))
+
+    with patch("src.agents.writer.get_llm", return_value=fake_llm):
+        diff = writer_node(state)
+
+    assert diff["report"] != ""
+    assert "no fue posible" in diff["report"].lower() or "error" in diff["report"].lower()
+    assert len(diff["errors"]) == 1
+    assert diff["errors"][0]["node"] == "writer"

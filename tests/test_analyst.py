@@ -74,3 +74,26 @@ def test_analyst_does_not_send_full_content_to_llm():
     assert "snippet corto" in captured_prompt["text"]
     assert "tA" in captured_prompt["text"]
     assert "uA" in captured_prompt["text"]
+
+
+def test_analyst_catches_llm_exception_and_returns_safe_diff():
+    state = make_initial_state("¿Q?")
+    state["research_results"] = [
+        {"url": "u", "title": "t", "content": "c", "snippet": "s", "query": "q"}
+    ]
+
+    def raise_boom(prompt):
+        raise RuntimeError("analyst boom")
+
+    llm = MagicMock()
+    structured = MagicMock()
+    structured.invoke = MagicMock(side_effect=raise_boom)
+    llm.with_structured_output = MagicMock(return_value=structured)
+
+    with patch("src.agents.analyst.get_llm", return_value=llm):
+        diff = analyst_node(state)
+
+    assert len(diff["errors"]) == 1
+    assert diff["errors"][0]["node"] == "analyst"
+    assert "no fue posible" in diff["analysis"].lower() or "error" in diff["analysis"].lower()
+    assert diff["gaps"] == [state["question"]]
