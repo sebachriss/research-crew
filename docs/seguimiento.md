@@ -40,9 +40,9 @@ UI: validada en navegador con la misma pregunta — sidebar streamea evento por 
 
 ### 4. Push a GitHub público
 
-Repo público: **https://github.com/sebalda/research-crew** (branch `main`, 32 commits).
+Repo público: **https://github.com/sebachriss/research-crew** (branch `main`, 32 commits iniciales).
 
-Nota: `gh` requirió `auth login` para agregar la cuenta `sebalda` (la activa antes era `sebakobai1` de trabajo) y `gh auth setup-git` para que git resolviera el credential helper correcto en HTTPS — el primer push devolvió 403 porque Git Credential Manager tenía cacheada la otra cuenta.
+Nota: `gh` requirió `auth login` para agregar la cuenta personal (antes la activa era `sebakobai1` de trabajo) y `gh auth setup-git` para que git resolviera el credential helper correcto en HTTPS — el primer push devolvió 403 porque Git Credential Manager tenía cacheada la otra cuenta. Posteriormente el username personal pasó de `sebalda` a `sebachriss`; el remote y `git config user.name` quedaron actualizados.
 
 ---
 
