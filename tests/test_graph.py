@@ -97,3 +97,36 @@ def test_graph_re_research_then_close():
     assert final_state["report"] != ""
     assert final_state["research_rounds"] == 2
     assert final_state["enough_info"] is True
+
+
+def test_graph_completes_when_all_tavily_queries_fail():
+    """Flujo degradado end-to-end: las 3 queries de Tavily lanzan excepción.
+    El researcher las captura (gather con return_exceptions=True), el analyst
+    recibe research_results=[], el writer produce un informe, y el grafo
+    termina sin crashear con errores registrados en el estado."""
+    state = make_initial_state("¿Q?")
+
+    plan = PlanOutput(queries=["q1", "q2", "q3"])
+    analyst = AnalystOutput(analysis="información insuficiente", gaps=["todo"])
+    eval_ok = EvalOutput(enough_info=True, queries=[], reasoning="sin data disponible")
+
+    fake_llm = _fake_llm_sequence(plan, analyst, eval_ok)
+
+    def fake_search_raises(query, **kwargs):
+        raise RuntimeError(f"Tavily caído para '{query}'")
+
+    with (
+        patch("src.agents.supervisor.get_llm", return_value=fake_llm),
+        patch("src.agents.analyst.get_llm", return_value=fake_llm),
+        patch("src.agents.writer.get_llm", return_value=fake_llm),
+        patch("src.agents.researcher.TavilyClient") as mock_tv,
+    ):
+        mock_tv.return_value.search.side_effect = fake_search_raises
+        graph = build_graph()
+        final_state = asyncio.run(graph.ainvoke(state))
+
+    assert final_state["report"] != ""
+    assert final_state["research_results"] == []
+    researcher_errors = [e for e in final_state["errors"] if e["node"] == "researcher"]
+    assert len(researcher_errors) == 3
+    assert final_state["iteration_count"] <= 8
