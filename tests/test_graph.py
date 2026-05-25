@@ -8,7 +8,7 @@ from src.state import make_initial_state
 
 def _fake_llm_sequence(*responses):
     """LLM mock cuyo .with_structured_output().invoke() devuelve responses en orden,
-    y cuyo .invoke() (sin estructurar, usado por writer) devuelve una respuesta de texto fija."""
+    y cuyo .astream() (usado por writer) yieldea chunks de texto fijos."""
     invocations = {"count": 0}
 
     def structured_invoke(prompt):
@@ -16,10 +16,15 @@ def _fake_llm_sequence(*responses):
         invocations["count"] += 1
         return responses[idx]
 
+    async def fake_astream(prompt):
+        yield MagicMock(content="## TL;DR\n- punto [1]\n\n## Hallazgos clave\n### Uno\nblah [1]")
+
     llm = MagicMock()
     structured = MagicMock()
     structured.invoke = MagicMock(side_effect=structured_invoke)
     llm.with_structured_output = MagicMock(return_value=structured)
+    llm.astream = fake_astream
+    # Keep .invoke too in case some test path still uses it; remove if unused.
     llm.invoke = MagicMock(
         return_value=MagicMock(content="## TL;DR\n- punto [1]\n\n## Hallazgos clave\n### Uno\nblah [1]")
     )

@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import MagicMock, patch
 
 from src.agents.writer import build_sources_section, extract_cited_indices, writer_node
@@ -47,11 +48,17 @@ def test_writer_node_produces_report_with_sources_appended():
     ]
 
     fake_text = "## TL;DR\n- punto importante [1]\n\n## Hallazgos clave\n### Uno\nblah [2]"
+
+    async def fake_astream(prompt):
+        # Emit in 2 chunks to verify accumulation works
+        yield MagicMock(content=fake_text[:30])
+        yield MagicMock(content=fake_text[30:])
+
     fake_llm = MagicMock()
-    fake_llm.invoke = MagicMock(return_value=MagicMock(content=fake_text))
+    fake_llm.astream = fake_astream
 
     with patch("src.agents.writer.get_llm", return_value=fake_llm):
-        diff = writer_node(state)
+        diff = asyncio.run(writer_node(state))
 
     assert "## TL;DR" in diff["report"]
     assert "## Fuentes" in diff["report"]
@@ -67,10 +74,10 @@ def test_writer_catches_llm_exception_and_returns_fallback_report():
     state["research_results"] = []
 
     fake_llm = MagicMock()
-    fake_llm.invoke = MagicMock(side_effect=RuntimeError("writer boom"))
+    fake_llm.astream = MagicMock(side_effect=RuntimeError("writer boom"))
 
     with patch("src.agents.writer.get_llm", return_value=fake_llm):
-        diff = writer_node(state)
+        diff = asyncio.run(writer_node(state))
 
     assert diff["report"] != ""
     assert "no fue posible" in diff["report"].lower() or "error" in diff["report"].lower()

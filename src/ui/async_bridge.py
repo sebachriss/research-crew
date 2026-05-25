@@ -1,11 +1,14 @@
 """Bridge async→sync para Streamlit.
 
-Streamlit no soporta `async for` directamente en el main thread. Este módulo expone
-un generador sync que internamente corre `graph.astream` en un loop async y va
-yieldando eventos. Estrategia: bombearlos a una asyncio.Queue, y consumirla con
-asyncio.run mediante una corutina recolectora — simple y suficiente para demo.
+Streamlit no soporta `async for` directamente en el main thread. Este módulo
+expone un generador sync que internamente corre `graph.astream` en un thread
+de background y bombea eventos a una `queue.Queue` sync. El generator drena
+esa queue desde el main thread, yieldando eventos a medida que llegan — esto
+es lo que da la sensación de streaming en tiempo real en la UI.
 """
 import asyncio
+import queue
+import threading
 from collections.abc import Generator
 
 from src.graph import build_graph
@@ -15,7 +18,7 @@ from src.state import make_initial_state
 def run_graph_streaming(
     question: str,
 ) -> Generator[tuple[str, object], None, None]:
-    """Generador sync que yieldea eventos del grafo.
+    """Generador sync que yieldea eventos del grafo en tiempo real.
 
     Yields:
         ("state", payload_dict)  — un update con el diff de algún nodo.
@@ -24,33 +27,33 @@ def run_graph_streaming(
     graph = build_graph()
     initial = make_initial_state(question)
 
-    queue: asyncio.Queue = asyncio.Queue()
+    q: queue.Queue = queue.Queue()
     DONE = object()
 
-    async def producer():
-        try:
-            async for event_type, payload in graph.astream(
-                initial, stream_mode=["updates", "messages"]
-            ):
-                if event_type == "updates":
-                    await queue.put(("state", payload))
-                elif event_type == "messages":
-                    token, metadata = payload
-                    if metadata.get("langgraph_node") == "writer":
-                        await queue.put(("token", token.content))
-        finally:
-            await queue.put(DONE)
+    def thread_target():
+        async def producer():
+            try:
+                async for event_type, payload in graph.astream(
+                    initial, stream_mode=["updates", "messages"]
+                ):
+                    if event_type == "updates":
+                        q.put(("state", payload))
+                    elif event_type == "messages":
+                        token, metadata = payload
+                        if metadata.get("langgraph_node") == "writer":
+                            q.put(("token", token.content))
+            finally:
+                q.put(DONE)
 
-    async def consume_and_yield():
-        task = asyncio.create_task(producer())
-        items: list[tuple[str, object]] = []
-        while True:
-            item = await queue.get()
-            if item is DONE:
-                break
-            items.append(item)
-        await task
-        return items
+        asyncio.run(producer())
 
-    items = asyncio.run(consume_and_yield())
-    yield from items
+    thread = threading.Thread(target=thread_target, daemon=True)
+    thread.start()
+
+    while True:
+        item = q.get()
+        if item is DONE:
+            break
+        yield item
+
+    thread.join()

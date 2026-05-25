@@ -63,8 +63,13 @@ _FALLBACK_REPORT = (
 )
 
 
-def writer_node(state: AgentState) -> dict:
-    """Genera el informe y le concatena la sección Fuentes."""
+async def writer_node(state: AgentState) -> dict:
+    """Genera el informe y le concatena la sección Fuentes.
+
+    Usa `llm.astream()` para que LangGraph propague tokens en tiempo real
+    vía `stream_mode="messages"`. El body se acumula token por token; el
+    post-procesamiento (citas, sección Fuentes) corre una vez al final.
+    """
     try:
         llm = get_llm()
         prompt = _PROMPT.format(
@@ -72,8 +77,10 @@ def writer_node(state: AgentState) -> dict:
             analysis=state["analysis"],
             sources=_format_sources_for_prompt(state["research_results"]),
         )
-        response = llm.invoke(prompt)
-        body = response.content if hasattr(response, "content") else str(response)
+        body = ""
+        async for chunk in llm.astream(prompt):
+            content = chunk.content if hasattr(chunk, "content") else str(chunk)
+            body += content
 
         cited = extract_cited_indices(body)
         sources_section = build_sources_section(cited, state["research_results"])
