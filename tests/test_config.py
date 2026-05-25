@@ -19,8 +19,12 @@ def test_config_reads_env_overrides(monkeypatch):
     # Re-import to pick up env vars
     from src import config
     importlib.reload(config)
-    assert config.MAX_ITERATIONS == 12
-    assert config.MODEL_NAME_DEFAULT == "gemini-2.5-pro"
+    try:
+        assert config.MAX_ITERATIONS == 12
+        assert config.MODEL_NAME_DEFAULT == "gemini-2.5-pro"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
 
 
 def test_config_requires_api_keys_via_check():
