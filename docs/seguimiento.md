@@ -1,20 +1,22 @@
 # Seguimiento — Research Crew
 
-**Última sesión:** 2026-05-25
-**Próxima sesión:** smoke tests con `.env` + push a GitHub
+**Última sesión:** 2026-05-25 (segunda parte: smoke tests CLI + UI, fixes derivados)
+**Próxima sesión:** push a GitHub público
 
 ---
 
 ## ✅ Estado actual
 
-Implementación **completa + minor issues cerrados** en sesión 2026-05-25.
+Implementación **completa + minor issues cerrados + smoke tests validados** en sesión 2026-05-25.
 
-- 42 tests automatizados pasando, todos con mocks (corren en <2s) — se agregó el e2e degradado
+- 44 tests automatizados pasando, todos con mocks (corren en <2s)
 - Ruff clean en todo `src/` y `tests/`
 - Arquitectura fiel al spec: supervisor + 3 workers vía LangGraph, prompts en `.txt`, error handling graceful
-- Streaming real funcionando: bridge async→sync incremental + writer con `astream`
+- Streaming real validado en navegador con Gemini + Tavily reales: traza streamea, tokens fluyen, botón Descargar persistente
 - `_now/_trace` centralizados en `src/agents/_trace_util.py` (Literal tipado, sin `type: ignore`)
 - `LICENSE` MIT presente; `.env.example` completo; `app.py` usa `MAX_ITERATIONS` del config
+- Regex de citas acepta agrupadas `[1, 2, 3]` (fix derivado del smoke test CLI)
+- UI Streamlit con sidebar live via placeholders + render persistente del report
 
 Para verificar que todo sigue OK al retomar:
 
@@ -30,45 +32,13 @@ git log --oneline | head -10
 
 ## 🔧 Pendiente para mañana
 
-### 1. Configurar `.env` con API keys reales
+### 1-3. ~~Configurar .env + smoke tests CLI/UI~~ ✅ hechos 2026-05-25
 
-Editar `.env` (todavía no existe; partir de `.env.example`):
+CLI: validado con "¿Cuál es el estado actual de la regulación de IA en Chile?" — produjo informe completo con TL;DR, Hallazgos, Fuentes reales (uhc.cl, iapp.org). Bug detectado y fixeado: citas agrupadas (commit `a314388`).
 
-```powershell
-cp .env.example .env
-notepad .env
-```
+UI: validada en navegador con la misma pregunta — sidebar streamea evento por evento, tokens del report fluyen, botón Descargar persistente. Bugs detectados y fixeados (commit `27012c0`): sidebar via placeholders, eliminado `st.rerun()`, render persistente del informe.
 
-Llenar:
-- `GOOGLE_API_KEY=` → tu key de [Google AI Studio](https://aistudio.google.com/apikey)
-- `TAVILY_API_KEY=` → tu key de [Tavily](https://app.tavily.com/home)
-
-### 2. Smoke test del CLI
-
-```powershell
-.venv\Scripts\python.exe -m src.graph "¿Cuál es el estado actual de la regulación de IA en Chile?"
-```
-
-**Qué validar:**
-- Termina sin crash
-- Imprime un informe Markdown con `## TL;DR`, `## Hallazgos clave`, `## Fuentes`
-- Las URLs de la sección Fuentes son reales (no inventadas por el LLM)
-- `iteration_count` final ≤ 8
-
-### 3. Smoke test de la UI Streamlit
-
-```powershell
-streamlit run app.py
-```
-
-Abre [localhost:8501](http://localhost:8501) y prueba:
-
-- [ ] Sidebar muestra la traza de eventos **en tiempo real** mientras el grafo corre (no todo al final — el fix del bridge debería hacer esto). Si la traza aparece de golpe al final, hay un bug latente.
-- [ ] Main panel muestra tokens del informe haciéndose stream token-por-token. Si aparece todo de golpe, los callbacks de Gemini no están emitiendo tokens vía `stream_mode="messages"` y hay que ajustar.
-- [ ] Botón "Descargar informe (.md)" funciona.
-- [ ] Si hay errores en algún nodo, se ven en el expander del sidebar.
-
-### 4. Push a GitHub público (si los smoke tests pasan)
+### 4. Push a GitHub público
 
 ```powershell
 gh repo create research-crew --public --source=. --remote=origin --description "Sistema multi-agente con LangGraph"
